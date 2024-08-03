@@ -20,8 +20,6 @@ app.use("/events", eventsRouter);
 app.use("/event/search", searchEvents);
 app.use("/booking", bookingsRouter);
 
-app.use(express.static('./eventImages'));
-
 mongoose.connect(process.env.MONGODB_URL)
   .then(() =>
     app.listen(process.env.PORT || 8000, () =>

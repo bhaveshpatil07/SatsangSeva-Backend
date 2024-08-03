@@ -2,17 +2,9 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Events from "../models/Events.js";
 import User from "../models/User.js";
-import multer from 'multer';
-
-const storage = multer.diskStorage({
-  destination: './eventImages/',
-  filename: (req, file, cb) => {
-    const originalName = `${Date.now()}-${file.originalname}`;
-    cb(null, originalName);
-  },
-});
-
-const upload = multer({ storage: storage }).single('eventPoster');
+import upload from "../utils/multer.js";
+import cloudinary from "../utils/cloudinary.js";
+import Bookings from "../models/Bookings.js";
 
 export const addEvent = async (req, res, next) => {
   const extractedToken = req.headers.authorization.split(" ")[1];
@@ -32,7 +24,7 @@ export const addEvent = async (req, res, next) => {
     }
   });
 
-  upload(req, res, async(err) => {
+  upload(req, res, async (err) => {
     if (err) {
       return res.status(500).json({ message: 'Error in uploading Poster: ', err });
     } else {
@@ -44,7 +36,9 @@ export const addEvent = async (req, res, next) => {
         return res.status(422).json({ message: 'Invalid inputs', errors });
       }
 
-      let eventPoster = req.file.filename;
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'SatsangSeva',
+      });
 
       let event;
       try {
@@ -52,7 +46,7 @@ export const addEvent = async (req, res, next) => {
           eventName, eventCategory, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress,
           startDate: new Date(`${startDate}Z`),
           endDate: new Date(`${endDate}Z`),
-          eventPoster,
+          eventPoster: result.secure_url,
           user: adminId,
         });
 
@@ -109,6 +103,38 @@ export const getEventById = async (req, res, next) => {
   }
 
   return res.status(200).json({ event: event });
+};
+
+export const deleteEvent = async (req, res, next) => {
+  const id = req.params.id;
+  let event;
+  try {
+    event = await User.findByIdAndRemove(id);
+  } catch (err) {
+    return console.log(err);
+  }
+  if (!event) {
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+
+  // Extract the public_id from the secure_url
+  const publicId = event.eventPoster.split('/').pop().split('.')[0];
+
+  // Delete Cloudinary image
+  try {
+    await cloudinary.v2.uploader.destroy(publicId);
+  } catch (err) {
+    console.log(err);
+  }
+
+  // Delete all bookings related to the event
+  try {
+    await Bookings.deleteMany({ event: id });
+  } catch (err) {
+    console.log(err);
+  }
+
+  return res.status(200).json({ message: "Deleted Successfully" });
 };
 
 export const searchEvents = async (req, res, next) => {
