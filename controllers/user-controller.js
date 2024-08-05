@@ -54,30 +54,41 @@ export const singup = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   const id = req.params.id;
   const { name, email, phoneNumber, password } = req.body;
+  // Check if any of the fields are provided
   if (
-    !name &&
-    name.trim() === "" &&
-    !email &&
-    email.trim() === "" &&
-    !phoneNumber &&
-    phoneNumber.trim() === "" &&
-    !password &&
-    password.trim() === ""
+    (!name || name.trim() === "") &&
+    (!email || email.trim() === "") &&
+    (!phoneNumber || phoneNumber.trim() === "") &&
+    (!password || password.trim() === "")
   ) {
     return res.status(422).json({ message: "Invalid Inputs" });
   }
   const hashedPassword = bcrypt.hashSync(password);
 
+  // Check if id is an email using regex
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   let user;
   try {
-    user = await User.findByIdAndUpdate(id, {
-      name,
-      email,
-      phoneNumber,
-      password: hashedPassword,
-    });
+    if (emailRegex.test(id)) {
+      // Find user by email and update
+      const update = {};
+      if (name) update.name = name;
+      if (email) update.email = email;
+      if (phoneNumber) update.phoneNumber = phoneNumber;
+      if (password) update.password = bcrypt.hashSync(password);
+      user = await User.findOneAndUpdate({ email: id }, update);
+    } else {
+      // Find user by id and update
+      const update = {};
+      if (name) update.name = name;
+      if (email) update.email = email;
+      if (phoneNumber) update.phoneNumber = phoneNumber;
+      if (password) update.password = bcrypt.hashSync(password);
+      user = await User.findByIdAndUpdate(id, update);
+    }
   } catch (errr) {
-    return console.log(errr);
+    console.log(errr);
+    return res.status(500).json({ message: errr });
   }
   if (!user) {
     return res.status(500).json({ message: "Something went wrong" });
@@ -100,7 +111,7 @@ export const deleteUser = async (req, res, next) => {
 };
 
 export const login = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password, gAuth } = req.body;
   if (!email && email.trim() === "" && !password && password.trim() === "") {
     return res.status(422).json({ message: "Invalid Inputs" });
   }
@@ -121,13 +132,16 @@ export const login = async (req, res, next) => {
       .json({ message: "Unable to find user from this ID" });
   }
 
-  const isPasswordCorrect = bcrypt.compareSync(password, existingUser.password);
+  if (!gAuth || gAuth === false) {
+    const isPasswordCorrect = bcrypt.compareSync(password, existingUser.password);
 
-  if (!isPasswordCorrect) {
-    return res.status(400).json({ message: "Incorrect Password" });
+    if (!isPasswordCorrect) {
+      return res.status(400).json({ message: "Incorrect Password" });
+    }
   }
+
   const token = jwt.sign({ id: existingUser._id }, process.env.SECRET_KEY, {
-    expiresIn: "7d",
+    expiresIn: "1d",
   });
 
   return res
@@ -141,7 +155,8 @@ export const getBookingsOfUser = async (req, res, next) => {
   try {
     bookings = await Bookings.find({ user: id })
       .populate("event")
-      .populate("user");
+      .populate("user")
+      .sort({ _id: -1 });
   } catch (err) {
     return console.log(err);
   }
@@ -155,7 +170,7 @@ export const getEventsOfUser = async (req, res, next) => {
   const id = req.params.id;
   let events;
   try {
-    events = await Events.find({ user: id });
+    events = await Events.find({ user: id }).sort({ _id: -1 });
   } catch (err) {
     return console.log(err);
   }

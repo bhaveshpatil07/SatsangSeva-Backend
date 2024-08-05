@@ -10,6 +10,18 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  noOfAttendee: {
+    type: String,
+    default: "1"
+  },
+  amountPaid: {
+    type: String,
+    default: "0"
+  },
+  paymentId: {
+    type: String,
+    default: null
+  },
   user: {
     type: mongoose.Types.ObjectId,
     ref: "User",

@@ -70,13 +70,13 @@ export const addEvent = async (req, res, next) => {
   });
 };
 
-export const getAllEvents = async (req, res, next) => {
+export const getUpComingEvents = async (req, res, next) => {
   let events;
 
   try {
-    // get Upcoming events
+    // get Upcoming events SortedByStartDate
     const currentDate = new Date();
-    events = await Events.find({ startDate: { $gte: currentDate } });
+    events = await Events.find({ startDate: { $gte: currentDate } }).sort({ startDate: 1 });
     // // get all events
     // events = await Events.find();
   } catch (err) {
@@ -85,6 +85,31 @@ export const getAllEvents = async (req, res, next) => {
 
   if (!events) {
     return res.status(500).json({ message: "Request Failed" });
+  }
+  if (events.length === 0) {
+    return res.status(404).json({ message: "No events found" });
+  }
+  return res.status(200).json({ events: events });
+};
+
+export const getPastEvents = async (req, res, next) => {
+  let events;
+
+  try {
+    // get Upcoming events SortedByStartDate
+    const currentDate = new Date();
+    events = await Events.find({ endDate: { $lt: currentDate } }).sort({ endDate: -1 });
+    // // get all events
+    // events = await Events.find();
+  } catch (err) {
+    return console.log(err);
+  }
+
+  if (!events) {
+    return res.status(500).json({ message: "Request Failed" });
+  }
+  if (events.length === 0) {
+    return res.status(404).json({ message: "No Past events found" });
   }
   return res.status(200).json({ events: events });
 };
@@ -178,7 +203,7 @@ function validateEventInputs(inputs) {
     errors.eventLang = 'Event language is required and must be a non-empty string';
   }
 
-  if (!inputs.noOfAttendees || typeof inputs.noOfAttendees !== 'string' || parseInt(inputs.noOfAttendees, 10) <= 0) {
+  if (!inputs.noOfAttendees || typeof inputs.noOfAttendees !== 'string') {
     errors.noOfAttendees = 'Number of attendees is required and must be a positive integer';
   }
 
@@ -190,15 +215,15 @@ function validateEventInputs(inputs) {
     errors.hostName = 'Host name is required and must be a non-empty string';
   }
 
-  if (inputs.hostWhatsapp && typeof inputs.hostWhatsapp !== 'string' && inputs.hostWhatsapp.length !== 10) {
+  if (!inputs.hostWhatsapp || typeof inputs.hostWhatsapp !== 'string' || inputs.hostWhatsapp.length !== 10) {
     errors.hostWhatsapp = 'Host WhatsApp number must be of 10 Digits';
   }
 
-  if (inputs.sponserName && typeof inputs.sponserName !== 'string' && inputs.sponserName.trim() !== "") {
+  if (!inputs.sponserName || typeof inputs.sponserName !== 'string' || inputs.sponserName.trim() === "") {
     errors.sponserName = 'Sponsor name must be a non-empty string';
   }
 
-  if (inputs.eventLink && typeof inputs.eventLink !== 'string' && inputs.eventLink.trim() !== "") {
+  if (!inputs.eventLink || typeof inputs.eventLink !== 'string' || inputs.eventLink.trim() === "") {
     errors.eventLink = 'Event link must be a valid URL';
   }
 
