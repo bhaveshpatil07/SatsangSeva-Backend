@@ -13,6 +13,14 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  eventDesc: {
+    type: String,
+    required: true,
+  },
+  eventPrice: {
+    type: String,
+    required: true,
+  },
   eventLang: {
     type: String,
     required: true,

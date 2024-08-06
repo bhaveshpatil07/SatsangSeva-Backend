@@ -29,7 +29,7 @@ export const addEvent = async (req, res, next) => {
       return res.status(500).json({ message: 'Error in uploading Poster: ', err });
     } else {
       // create new event
-      const { eventName, eventCategory, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress, startDate, endDate } = JSON.parse(req.body.eventData);
+      const { eventName, eventCategory, eventDesc, eventPrice, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress, startDate, endDate } = JSON.parse(req.body.eventData);
 
       const errors = validateEventInputs(JSON.parse(req.body.eventData));
       if (errors) {
@@ -43,7 +43,7 @@ export const addEvent = async (req, res, next) => {
       let event;
       try {
         event = new Events({
-          eventName, eventCategory, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress,
+          eventName, eventCategory, eventDesc, eventPrice, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress,
           startDate: new Date(`${startDate}Z`),
           endDate: new Date(`${endDate}Z`),
           eventPoster: result.secure_url,
@@ -197,6 +197,14 @@ function validateEventInputs(inputs) {
 
   if (!inputs.eventCategory || typeof inputs.eventCategory !== 'string' || inputs.eventCategory.trim() === '') {
     errors.eventCategory = 'Event category is required and must be a non-empty string';
+  }
+  
+  if (!inputs.eventDesc || typeof inputs.eventDesc !== 'string' || inputs.eventDesc.trim() === '') {
+    errors.eventDesc = 'Event Description is required and must be a non-empty string';
+  }
+  
+  if (!inputs.eventPrice || typeof inputs.eventPrice !== 'string' || inputs.eventPrice.trim() === '' || parseInt(inputs.eventPrice, 10)<0) {
+    errors.eventPrice = 'Event Price is required and must be >=0';
   }
 
   if (!inputs.eventLang || typeof inputs.eventLang !== 'string' || inputs.eventLang.trim() === '') {

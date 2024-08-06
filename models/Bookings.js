@@ -12,11 +12,11 @@ const bookingSchema = new mongoose.Schema({
   },
   noOfAttendee: {
     type: String,
-    default: "1"
+    required: true
   },
   amountPaid: {
     type: String,
-    default: "0"
+    required: true
   },
   paymentId: {
     type: String,

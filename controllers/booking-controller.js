@@ -4,7 +4,7 @@ import Event from "../models/Events.js";
 import User from "../models/User.js";
 
 export const newBooking = async (req, res, next) => {
-  const { event, attendeeContact, user } = req.body;
+  const { event, attendeeContact, noOfAttendee, amountPaid, paymentId, user } = req.body;
 
   let existingEvent;
   let existingUser;
@@ -26,6 +26,9 @@ export const newBooking = async (req, res, next) => {
     booking = new Bookings({
       event,
       attendeeContact,
+      noOfAttendee,
+      amountPaid,
+      paymentId,
       user,
     });
     const session = await mongoose.startSession();
@@ -82,3 +85,30 @@ export const deleteBooking = async (req, res, next) => {
   }
   return res.status(200).json({ message: "Successfully Deleted" });
 };
+
+export const getCount = async (req, res, next) => {
+  try {
+    const [userCount, totalAttendees, eventCount] = await Promise.all([
+      User.countDocuments({}),
+      Bookings.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalAttendees: { $sum: { $toInt: "$noOfAttendee" } },
+          },
+        },
+      ]).then((result) => result[0].totalAttendees),
+      Event.countDocuments({}), 
+    ]);
+
+    res.json({
+      users: userCount,
+      bookings: totalAttendees,
+      events: eventCount,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error retrieving counts' });
+  }
+};
+

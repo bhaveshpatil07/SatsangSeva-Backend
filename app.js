@@ -8,6 +8,7 @@ import eventsRouter from "./routes/events-routes.js";
 import bookingsRouter from "./routes/booking-routes.js";
 import cors from "cors";
 import { searchEvents } from "./controllers/event-controller.js";
+import { getCount } from "./controllers/booking-controller.js";
 dotenv.config();
 const app = express();
 
@@ -18,6 +19,7 @@ app.use("/user", userRouter);
 // app.use("/admin", adminRouter);
 app.use("/events", eventsRouter);
 app.use("/event/search", searchEvents);
+app.use("/analytics", getCount);
 app.use("/booking", bookingsRouter);
 
 mongoose.connect(process.env.MONGODB_URL)
