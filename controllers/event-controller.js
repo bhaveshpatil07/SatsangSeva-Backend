@@ -76,7 +76,7 @@ export const getUpComingEvents = async (req, res, next) => {
   try {
     // get Upcoming events SortedByStartDate
     const currentDate = new Date();
-    events = await Events.find({ startDate: { $gte: currentDate } }).sort({ startDate: 1 });
+    events = await Events.find({ startDate: { $gte: currentDate } }).sort({ startDate: 1 }).populate('bookings', 'noOfAttendee');
     // // get all events
     // events = await Events.find();
   } catch (err) {
@@ -120,7 +120,8 @@ export const getEventById = async (req, res, next) => {
   try {
     event = await Events.findById(id);
   } catch (err) {
-    return console.log(err);
+    console.log(err);
+    return res.status(404).json({ message: "Invalid Event ID: " + err });
   }
 
   if (!event) {
@@ -171,7 +172,16 @@ export const searchEvents = async (req, res, next) => {
 
   if (eventName) query.eventName = { $regex: eventName, $options: 'i' };
   if (eventAddress) query.eventAddress = { $regex: eventAddress, $options: 'i' };
-  if (startDate) query.startDate = { $gte: new Date(`${startDate}Z`) };
+  if (startDate) {
+    const startDateParts = startDate.split('-'); // split the date string into year, month, and day
+    const startOfDay = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2], 0, 0, 0); // specific date at 00:00:00
+    const endOfDay = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2], 23, 59, 59); // specific date at 23:59:59
+  
+    query.startDate = {
+      $gte: startOfDay,
+      $lte: endOfDay
+    };
+  }
 
   let events;
   try {
@@ -187,6 +197,33 @@ export const searchEvents = async (req, res, next) => {
   return res.status(200).json({ events: events });
 };
 
+export const suggestEventNames = async (req, res, next) => {
+  const eventName = req.query.name;
+
+  if (!eventName) {
+    return res.status(200).json({ suggestions: [] });
+  }
+
+  const query = {
+    eventName: { $regex: eventName, $options: 'i' }
+  };
+
+  let suggestions;
+  try {
+    suggestions = await Events.find(query, { eventName: 1 }).limit(10);
+  } catch (err) {
+    return console.log(err);
+  }
+
+  if (!suggestions || suggestions.length === 0) {
+    return res.status(200).json({ suggestions: [] });
+  }
+
+  const suggestedEventNames = [...new Set(suggestions.map(suggestion => suggestion.eventName))];
+
+  return res.status(200).json({ suggestions: suggestedEventNames });
+};
+
 // eventValidation.js
 function validateEventInputs(inputs) {
   const errors = {};
@@ -198,12 +235,12 @@ function validateEventInputs(inputs) {
   if (!inputs.eventCategory || typeof inputs.eventCategory !== 'string' || inputs.eventCategory.trim() === '') {
     errors.eventCategory = 'Event category is required and must be a non-empty string';
   }
-  
+
   if (!inputs.eventDesc || typeof inputs.eventDesc !== 'string' || inputs.eventDesc.trim() === '') {
     errors.eventDesc = 'Event Description is required and must be a non-empty string';
   }
-  
-  if (!inputs.eventPrice || typeof inputs.eventPrice !== 'string' || inputs.eventPrice.trim() === '' || parseInt(inputs.eventPrice, 10)<0) {
+
+  if (!inputs.eventPrice || typeof inputs.eventPrice !== 'string' || inputs.eventPrice.trim() === '' || parseInt(inputs.eventPrice, 10) < 0) {
     errors.eventPrice = 'Event Price is required and must be >=0';
   }
 

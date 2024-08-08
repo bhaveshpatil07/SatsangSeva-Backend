@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import Bookings from "../models/Bookings.js";
 import jwt from "jsonwebtoken";
 import Events from "../models/Events.js";
+import upload from "../utils/multer.js";
+import cloudinary from "../utils/cloudinary.js";
 
 export const getAllUsers = async (req, res, next) => {
   let users;
@@ -94,6 +96,93 @@ export const updateUser = async (req, res, next) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
   res.status(200).json({ message: "Updated Sucessfully" });
+};
+
+export const modifyUser = async (req, res, next) => {
+  const id = req.params.id;
+  upload(req, res, async (err) => {
+    const update = {};
+    const { name, phoneNumber, password, desc, location, social } = JSON.parse(req.body.updateUser);
+
+
+    if (name) update.name = name;
+    // if (email) update.email = email;
+    if (phoneNumber) update.phoneNumber = phoneNumber;
+    if (password) update.password = bcrypt.hashSync(password);
+    if (desc) update.desc = desc;
+    if (location) update.location = location;
+
+    // Handle profile image upload
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'SatsangSeva/Users',
+        });
+        update.profile = result.secure_url;
+      } catch (err) {
+        console.log(err);
+        return res.status(500).json({ message: err });
+      }
+    }
+
+    if (social) {
+      update.social = Object.keys(social).map((key) => {
+        return { type: key, link: social[key] };
+      });
+    }
+
+    try {
+      const user = await User.findByIdAndUpdate(id, update);
+      return res.status(200).json({ message: "Updated Successfully" });
+    } catch (err) {
+      console.log(err);
+      return res.status(500).json({ message: err });
+    }
+  });
+};
+
+export const submitDoc = async (req, res, next) => {
+  const extractedToken = req.headers.authorization.split(" ")[1];
+  if (!extractedToken && extractedToken.trim() === "") {
+    return res.status(404).json({ message: "Token Not Found" });
+  }
+
+  let userId;
+
+  // verify token
+  jwt.verify(extractedToken, process.env.SECRET_KEY, (err, decrypted) => {
+    if (err) {
+      return res.status(400).json({ message: `${err.message}` });
+    } else {
+      userId = decrypted.id;
+      return;
+    }
+  });
+
+  upload(req, res, async (err) => {
+    const update = {};
+    // Handle doc upload
+    if (req.file) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'SatsangSeva/Users/docs',
+          resource_type: "auto",
+        });
+        update.document = result.secure_url;
+      } catch (err) {
+        console.log(err);
+        return res.status(500).json({ message: err });
+      }
+    }
+
+    try {
+      const user = await User.findByIdAndUpdate(userId, update);
+      return res.status(200).json({ message: "Document Updated Successfully!" });
+    } catch (err) {
+      console.log(err);
+      return res.status(500).json({ message: err });
+    }
+  });
 };
 
 export const deleteUser = async (req, res, next) => {
@@ -191,5 +280,7 @@ export const getUserById = async (req, res, next) => {
   if (!user) {
     return res.status(500).json({ message: "Unexpected Error Occured" });
   }
+  const createdAt = user._id.getTimestamp();
+  user = { ...user.toObject(), createdAt };
   return res.status(200).json({ user });
 };

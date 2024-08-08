@@ -20,6 +20,29 @@ const userSchema = new Schema({
     required: true,
     minLength: 6,
   },
+  desc: {
+    type: String,
+    default: null
+  },
+  location: {
+    type: String,
+    default: null
+  },
+  profile: {
+    type: String,
+    default: null
+  },
+  document: {
+    type: String,
+    default: null
+  },
+  social: [{
+    type: {
+      type: String,
+      enum: ['facebook', 'twitter', 'instagram']
+    },
+    link: String
+  }],
   bookings: [{ type: mongoose.Types.ObjectId, ref: "Booking" }],
   events: [
     {
