@@ -29,7 +29,7 @@ export const addEvent = async (req, res, next) => {
       return res.status(500).json({ message: 'Error in uploading Poster: ', err });
     } else {
       // create new event
-      const { eventName, eventCategory, eventDesc, eventPrice, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress, startDate, endDate } = JSON.parse(req.body.eventData);
+      const { eventName, eventCategory, eventDesc, eventPrice, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress, geoCoordinates, startDate, endDate } = JSON.parse(req.body.eventData);
 
       const errors = validateEventInputs(JSON.parse(req.body.eventData));
       if (errors) {
@@ -44,6 +44,10 @@ export const addEvent = async (req, res, next) => {
       try {
         event = new Events({
           eventName, eventCategory, eventDesc, eventPrice, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress,
+          geoCoordinates: {
+            type: 'Point',
+            coordinates: geoCoordinates,
+          },
           startDate: new Date(`${startDate}Z`),
           endDate: new Date(`${endDate}Z`),
           eventPoster: result.secure_url,
@@ -68,6 +72,41 @@ export const addEvent = async (req, res, next) => {
       return res.status(201).json({ eventData: event });
     }
   });
+};
+
+export const getNearByEvents = async (req, res, next) => {
+  const range = req.query.range;
+  const location = [req.query.long, req.query.lat];
+  
+  let events;
+
+  try {
+    // get Upcoming events SortedByStartDate
+    const currentDate = new Date();
+    events = await Events.find({
+      startDate: { $gte: currentDate },
+      geoCoordinates: {
+        $near: {
+          $geometry: {
+            type: "Point",
+            coordinates: location
+          },
+          $maxDistance: range * 1000 // convert km to meters
+        }
+      }
+    }).sort({ distance: 1 }).populate('bookings', 'noOfAttendee');
+
+  } catch (err) {
+    return console.log(err);
+  }
+
+  if (!events) {
+    return res.status(500).json({ message: "Request Failed" });
+  }
+  if (events.length === 0) {
+    return res.status(404).json({ message: "No events found" });
+  }
+  return res.status(200).json({ events: events });
 };
 
 export const getUpComingEvents = async (req, res, next) => {

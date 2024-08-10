@@ -58,6 +58,17 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  geoCoordinates: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true
+    },
+    coordinates: {
+      type: [Number],
+      required: true
+    }
+  },
   startDate: {
     type: Date,
     required: true,
@@ -73,5 +84,6 @@ const eventSchema = new mongoose.Schema({
     required: true,
   },
 });
+eventSchema.index({ geoCoordinates: '2dsphere' });
 
 export default mongoose.model("Events", eventSchema);
