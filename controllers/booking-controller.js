@@ -20,6 +20,9 @@ export const newBooking = async (req, res, next) => {
   if (!user) {
     return res.status(404).json({ message: "User not found with given ID" });
   }
+  if(!existingEvent.approved){
+    return res.status(404).json({ message: "This Event is not approved by Admin." });
+  }
   let booking;
 
   try {

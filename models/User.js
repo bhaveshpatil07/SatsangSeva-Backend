@@ -20,6 +20,11 @@ const userSchema = new Schema({
     required: true,
     minLength: 6,
   },
+  userType: {
+    type: String,
+    enum: ['Host&Participant', 'Host'],
+    default: 'Host&Participant'
+  },
   desc: {
     type: String,
     default: null

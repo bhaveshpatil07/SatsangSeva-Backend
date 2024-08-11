@@ -20,7 +20,7 @@ export const getAllUsers = async (req, res, next) => {
 };
 
 export const singup = async (req, res, next) => {
-  const { name, email, phoneNumber, password } = req.body;
+  const { name, email, phoneNumber, password, userType } = req.body;
   if (
     !name &&
     name.trim() === "" &&
@@ -42,7 +42,7 @@ export const singup = async (req, res, next) => {
   const hashedPassword = bcrypt.hashSync(password);
   let user;
   try {
-    user = new User({ name, email, phoneNumber, password: hashedPassword });
+    user = new User({ name, email, phoneNumber, password: hashedPassword, userType });
     user = await user.save();
   } catch (err) {
     return console.log(err);
@@ -113,9 +113,10 @@ export const modifyUser = async (req, res, next) => {
     if (location) update.location = location;
 
     // Handle profile image upload
-    if (req.file) {
+    if (req.files) {
       try {
-        const result = await cloudinary.uploader.upload(req.file.path, {
+        const file = req.files[0];
+        const result = await cloudinary.uploader.upload(file.path, {
           folder: 'SatsangSeva/Users',
         });
         update.profile = result.secure_url;
@@ -162,9 +163,10 @@ export const submitDoc = async (req, res, next) => {
   upload(req, res, async (err) => {
     const update = {};
     // Handle doc upload
-    if (req.file) {
+    if (req.files) {
       try {
-        const result = await cloudinary.uploader.upload(req.file.path, {
+        const file = req.files[0];
+        const result = await cloudinary.uploader.upload(file.path, {
           folder: 'SatsangSeva/Users/docs',
           resource_type: "auto",
         });
@@ -244,7 +246,7 @@ export const getBookingsOfUser = async (req, res, next) => {
   try {
     bookings = await Bookings.find({ user: id })
       .populate("event")
-      .populate("user")
+      // .populate("user")
       .sort({ _id: -1 });
   } catch (err) {
     return console.log(err);
@@ -259,7 +261,7 @@ export const getEventsOfUser = async (req, res, next) => {
   const id = req.params.id;
   let events;
   try {
-    events = await Events.find({ user: id }).sort({ _id: -1 });
+    events = await Events.find({ user: id, approved: true }).sort({ _id: -1 });
   } catch (err) {
     return console.log(err);
   }

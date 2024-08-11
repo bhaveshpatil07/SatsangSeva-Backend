@@ -10,8 +10,8 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  eventPoster: {
-    type: String,
+  eventPosters: {
+    type: [{ type: String }],
     required: true,
   },
   eventDesc: {
@@ -76,6 +76,11 @@ const eventSchema = new mongoose.Schema({
   endDate: {
     type: Date,
     required: true,
+  },
+  approved: {
+    type: Boolean,
+    index: true,
+    default: false,
   },
   bookings: [{ type: mongoose.Types.ObjectId, ref: "Booking" }],
   user: {

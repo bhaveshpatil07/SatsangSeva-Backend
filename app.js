@@ -9,6 +9,7 @@ import bookingsRouter from "./routes/booking-routes.js";
 import cors from "cors";
 import { getNearByEvents, searchEvents, suggestEventNames } from "./controllers/event-controller.js";
 import { getCount } from "./controllers/booking-controller.js";
+import adminRouter from "./routes/admin-routes.js";
 dotenv.config();
 const app = express();
 
@@ -16,7 +17,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use("/user", userRouter);
-// app.use("/admin", adminRouter);
+app.use("/admin", adminRouter);
 app.use("/events", eventsRouter);
 app.use("/event/search", searchEvents);
 app.use("/event/nearby", getNearByEvents);

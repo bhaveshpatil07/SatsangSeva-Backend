@@ -1,5 +1,4 @@
 import multer, { diskStorage } from "multer";
-import { extname } from "path";
 
 // Multer config
 export default multer({
@@ -12,4 +11,4 @@ export default multer({
     }
     cb(null, true);
   },
-}).single('image');
+}).array('images', 5);

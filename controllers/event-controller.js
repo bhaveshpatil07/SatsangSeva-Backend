@@ -36,9 +36,17 @@ export const addEvent = async (req, res, next) => {
         return res.status(422).json({ message: 'Invalid inputs', errors });
       }
 
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: 'SatsangSeva',
-      });
+      const filesWithIndex = req.files.map((file, index) => ({ file, index }));
+      filesWithIndex.sort((a, b) => a.index - b.index);
+
+      const eventPosters = await Promise.all(
+        filesWithIndex.slice(0, 4).map(async ({ file }) => {
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: 'SatsangSeva',
+          });
+          return result.secure_url;
+        })
+      );
 
       let event;
       try {
@@ -50,7 +58,7 @@ export const addEvent = async (req, res, next) => {
           },
           startDate: new Date(`${startDate}Z`),
           endDate: new Date(`${endDate}Z`),
-          eventPoster: result.secure_url,
+          eventPosters: eventPosters,
           user: adminId,
         });
 
@@ -77,7 +85,7 @@ export const addEvent = async (req, res, next) => {
 export const getNearByEvents = async (req, res, next) => {
   const range = req.query.range;
   const location = [req.query.long, req.query.lat];
-  
+
   let events;
 
   try {
@@ -85,6 +93,7 @@ export const getNearByEvents = async (req, res, next) => {
     const currentDate = new Date();
     events = await Events.find({
       startDate: { $gte: currentDate },
+      approved: true,
       geoCoordinates: {
         $near: {
           $geometry: {
@@ -115,7 +124,7 @@ export const getUpComingEvents = async (req, res, next) => {
   try {
     // get Upcoming events SortedByStartDate
     const currentDate = new Date();
-    events = await Events.find({ startDate: { $gte: currentDate } }).sort({ startDate: 1 }).populate('bookings', 'noOfAttendee');
+    events = await Events.find({ startDate: { $gte: currentDate }, approved: true }).sort({ startDate: 1 }).populate('bookings', 'noOfAttendee');
     // // get all events
     // events = await Events.find();
   } catch (err) {
@@ -157,7 +166,7 @@ export const getEventById = async (req, res, next) => {
   const id = req.params.id;
   let event;
   try {
-    event = await Events.findById(id);
+    event = await Events.findById(id).populate('bookings', 'noOfAttendee');
   } catch (err) {
     console.log(err);
     return res.status(404).json({ message: "Invalid Event ID: " + err });
@@ -168,6 +177,48 @@ export const getEventById = async (req, res, next) => {
   }
 
   return res.status(200).json({ event: event });
+};
+
+export const approveEventById = async (req, res, next) => {
+  const id = req.params.id;
+  let event;
+  try {
+    event = await Events.findById(id);
+  } catch (err) {
+    console.log(err);
+    return res.status(404).json({ message: "Invalid Event ID: " + err });
+  }
+
+  if (!event) {
+    return res.status(404).json({ message: "Invalid Event ID" });
+  }
+
+  event.approved = true; // Approve the event
+
+  try {
+    await event.save(); // Save the updated event
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Error approving event: " + err });
+  }
+
+  return res.status(200).json({ message: "Event: '"+event.eventName+"' is Approved." });
+};
+
+export const getPendingEvents = async (req, res, next) => {
+  let event;
+  try {
+    event = await Events.find({ approved: false });
+  } catch (err) {
+    console.log(err);
+    return res.status(404).json({ message: "Error In Finding Pending Approvals: " + err });
+  }
+
+  if (!event) {
+    return res.status(404).json({ message: "No Event's Approval Pending." });
+  }
+
+  return res.status(200).json({ pending: event });
 };
 
 export const deleteEvent = async (req, res, next) => {
@@ -212,15 +263,16 @@ export const searchEvents = async (req, res, next) => {
   if (eventName) query.eventName = { $regex: eventName, $options: 'i' };
   if (eventAddress) query.eventAddress = { $regex: eventAddress, $options: 'i' };
   if (startDate) {
-    const startDateParts = startDate.split('-'); // split the date string into year, month, and day
-    const startOfDay = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2], 0, 0, 0); // specific date at 00:00:00
-    const endOfDay = new Date(startDateParts[0], startDateParts[1] - 1, startDateParts[2], 23, 59, 59); // specific date at 23:59:59
-  
+    // const startDateParts = startDate.split('-'); // split the date string into year, month, and day
+    const startOfDay = new Date(`${startDate} 0:0:0Z`); // specific date at 00:00:00
+    const endOfDay = new Date(`${startDate} 23:59:59Z`); // specific date at 23:59:59
+
     query.startDate = {
       $gte: startOfDay,
       $lte: endOfDay
     };
   }
+  query.approved = true;
 
   let events;
   try {
@@ -244,7 +296,8 @@ export const suggestEventNames = async (req, res, next) => {
   }
 
   const query = {
-    eventName: { $regex: eventName, $options: 'i' }
+    eventName: { $regex: eventName, $options: 'i' },
+    approved: true
   };
 
   let suggestions;
