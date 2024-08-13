@@ -82,6 +82,83 @@ export const addEvent = async (req, res, next) => {
   });
 };
 
+export const updateEvent = async (req, res, next) => {
+  const extractedToken = req.headers.authorization.split(" ")[1];
+  if (!extractedToken && extractedToken.trim() === "") {
+    return res.status(404).json({ message: "Token Not Found" });
+  }
+
+  // verify token
+  if (extractedToken !== process.env.SECRET_KEY) {
+    return res.status(400).json({ message: "Invalid Token" });
+  }
+
+  const eventId = req.params.id;
+
+  const event = await Events.findById(eventId);
+  if (!event) {
+    return res.status(404).json({ message: "Event Not Found" });
+  }
+
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Error in uploading Poster: ', err });
+    } else {
+      // update event
+      const { eventName, eventCategory, eventDesc, eventPrice, eventLang, noOfAttendees, performerName, hostName, hostWhatsapp, sponserName, eventLink, location, eventAddress, geoCoordinates, startDate, endDate } = JSON.parse(req.body.eventData);
+
+      const errors = validateEventInputs(JSON.parse(req.body.eventData));
+      if (errors) {
+        return res.status(422).json({ message: 'Invalid inputs', errors });
+      }
+
+      if (req.files && req.files.length > 0) {
+        const filesWithIndex = req.files.map((file, index) => ({ file, index }));
+        filesWithIndex.sort((a, b) => a.index - b.index);
+
+        const eventPosters = await Promise.all(
+          filesWithIndex.slice(0, 4).map(async ({ file }) => {
+            const result = await cloudinary.uploader.upload(file.path, {
+              folder: 'SatsangSeva',
+            });
+            return result.secure_url;
+          })
+        );
+
+        event.eventPosters = eventPosters;
+      }
+
+      event.eventName = eventName;
+      event.eventCategory = eventCategory;
+      event.eventDesc = eventDesc;
+      event.eventPrice = eventPrice;
+      event.eventLang = eventLang;
+      event.noOfAttendees = noOfAttendees;
+      event.performerName = performerName;
+      event.hostName = hostName;
+      event.hostWhatsapp = hostWhatsapp;
+      event.sponserName = sponserName;
+      event.eventLink = eventLink;
+      event.location = location;
+      event.eventAddress = eventAddress;
+      event.geoCoordinates = {
+        type: 'Point',
+        coordinates: geoCoordinates,
+      };
+      event.startDate = new Date(`${startDate}`);
+      event.endDate = new Date(`${endDate}`);
+
+      try {
+        await event.save();
+      } catch (err) {
+        return console.log(err);
+      }
+
+      return res.status(201).json({ eventData: event });
+    }
+  });
+};
+
 export const getNearByEvents = async (req, res, next) => {
   const range = req.query.range;
   const location = [req.query.long, req.query.lat];
@@ -202,7 +279,33 @@ export const approveEventById = async (req, res, next) => {
     return res.status(500).json({ message: "Error approving event: " + err });
   }
 
-  return res.status(200).json({ message: "Event: '"+event.eventName+"' is Approved." });
+  return res.status(200).json({ message: "Event: '" + event.eventName + "' is Approved." });
+};
+
+export const rejectEventById = async (req, res, next) => {
+  const id = req.params.id;
+  let event;
+  try {
+    event = await Events.findById(id);
+  } catch (err) {
+    console.log(err);
+    return res.status(404).json({ message: "Invalid Event ID: " + err });
+  }
+
+  if (!event) {
+    return res.status(404).json({ message: "Invalid Event ID" });
+  }
+
+  event.approved = false; // Reject the event
+
+  try {
+    await event.save(); // Save the updated event
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Error rejecting event: " + err });
+  }
+
+  return res.status(200).json({ message: "Event: '" + event.eventName + "' is Rejected." });
 };
 
 export const getPendingEvents = async (req, res, next) => {
@@ -233,12 +336,14 @@ export const deleteEvent = async (req, res, next) => {
     return res.status(500).json({ message: "Something went wrong" });
   }
 
-  // Extract the public_id from the secure_url
-  const publicId = event.eventPoster.split('/').pop().split('.')[0];
-
-  // Delete Cloudinary image
+  // Delete all Cloudinary images
   try {
-    await cloudinary.v2.uploader.destroy(publicId);
+    await Promise.all(
+      event.eventPosters.map(async (posterUrl) => {
+        const publicId = posterUrl.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(publicId);
+      })
+    );
   } catch (err) {
     console.log(err);
   }
@@ -255,12 +360,14 @@ export const deleteEvent = async (req, res, next) => {
 
 export const searchEvents = async (req, res, next) => {
   const eventName = req.query.name;
+  const hostName = req.query.host;
   const eventAddress = req.query.add;
   const startDate = req.query.date;
 
   let query = {};
 
   if (eventName) query.eventName = { $regex: eventName, $options: 'i' };
+  if (hostName) query.hostName = { $regex: hostName, $options: 'i' };
   if (eventAddress) query.eventAddress = { $regex: eventAddress, $options: 'i' };
   if (startDate) {
     // const startDateParts = startDate.split('-'); // split the date string into year, month, and day
@@ -276,7 +383,7 @@ export const searchEvents = async (req, res, next) => {
 
   let events;
   try {
-    events = await Events.find(query);
+    events = await Events.find(query).populate('bookings', 'noOfAttendee');
   } catch (err) {
     return console.log(err);
   }
@@ -360,7 +467,7 @@ function validateEventInputs(inputs) {
     errors.sponserName = 'Sponsor name must be a non-empty string';
   }
 
-  if (!inputs.eventLink || typeof inputs.eventLink !== 'string' || inputs.eventLink.trim() === "") {
+  if (!inputs.eventLink || typeof inputs.eventLink !== 'string' || !/^(https?:\/\/[^\s]+|na)$/i.test(inputs.eventLink.trim())) {
     errors.eventLink = 'Event link must be a valid URL';
   }
 

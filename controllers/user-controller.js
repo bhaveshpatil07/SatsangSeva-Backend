@@ -6,7 +6,7 @@ import Events from "../models/Events.js";
 import upload from "../utils/multer.js";
 import cloudinary from "../utils/cloudinary.js";
 
-export const getAllUsers = async (req, res, next) => {
+export const getAllUsers = async (req, res) => {
   let users;
   try {
     users = await User.find();
@@ -19,7 +19,7 @@ export const getAllUsers = async (req, res, next) => {
   return res.status(200).json({ users });
 };
 
-export const singup = async (req, res, next) => {
+export const singup = async (req, res) => {
   const { name, email, phoneNumber, password, userType } = req.body;
   if (
     !name &&
@@ -53,7 +53,7 @@ export const singup = async (req, res, next) => {
   return res.status(201).json({ id: user._id });
 };
 
-export const updateUser = async (req, res, next) => {
+export const updateUser = async (req, res) => {
   const id = req.params.id;
   const { name, email, phoneNumber, password } = req.body;
   // Check if any of the fields are provided
@@ -65,7 +65,6 @@ export const updateUser = async (req, res, next) => {
   ) {
     return res.status(422).json({ message: "Invalid Inputs" });
   }
-  const hashedPassword = bcrypt.hashSync(password);
 
   // Check if id is an email using regex
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -98,9 +97,9 @@ export const updateUser = async (req, res, next) => {
   res.status(200).json({ message: "Updated Sucessfully" });
 };
 
-export const modifyUser = async (req, res, next) => {
+export const modifyUser = async (req, res) => {
   const id = req.params.id;
-  upload(req, res, async (err) => {
+  upload(req, res, async () => {
     const update = {};
     const { name, phoneNumber, password, desc, location, social } = JSON.parse(req.body.updateUser);
 
@@ -133,7 +132,6 @@ export const modifyUser = async (req, res, next) => {
     }
 
     try {
-      const user = await User.findByIdAndUpdate(id, update);
       return res.status(200).json({ message: "Updated Successfully" });
     } catch (err) {
       console.log(err);
@@ -142,7 +140,7 @@ export const modifyUser = async (req, res, next) => {
   });
 };
 
-export const submitDoc = async (req, res, next) => {
+export const submitDoc = async (req, res) => {
   const extractedToken = req.headers.authorization.split(" ")[1];
   if (!extractedToken && extractedToken.trim() === "") {
     return res.status(404).json({ message: "Token Not Found" });
@@ -160,7 +158,7 @@ export const submitDoc = async (req, res, next) => {
     }
   });
 
-  upload(req, res, async (err) => {
+  upload(req, res, async () => {
     const update = {};
     // Handle doc upload
     if (req.files) {
@@ -178,7 +176,6 @@ export const submitDoc = async (req, res, next) => {
     }
 
     try {
-      const user = await User.findByIdAndUpdate(userId, update);
       return res.status(200).json({ message: "Document Updated Successfully!" });
     } catch (err) {
       console.log(err);
@@ -187,7 +184,7 @@ export const submitDoc = async (req, res, next) => {
   });
 };
 
-export const deleteUser = async (req, res, next) => {
+export const deleteUser = async (req, res) => {
   const id = req.params.id;
   let user;
   try {
@@ -201,7 +198,7 @@ export const deleteUser = async (req, res, next) => {
   return res.status(200).json({ message: "Deleted Successfully" });
 };
 
-export const login = async (req, res, next) => {
+export const login = async (req, res) => {
   const { email, password, gAuth } = req.body;
   if (!email && email.trim() === "" && !password && password.trim() === "") {
     return res.status(422).json({ message: "Invalid Inputs" });
@@ -240,7 +237,7 @@ export const login = async (req, res, next) => {
     .json({ message: "Login Successfull", token, id: existingUser._id });
 };
 
-export const getBookingsOfUser = async (req, res, next) => {
+export const getBookingsOfUser = async (req, res) => {
   const id = req.params.id;
   let bookings;
   try {
@@ -257,7 +254,7 @@ export const getBookingsOfUser = async (req, res, next) => {
   return res.status(200).json({ bookings });
 };
 
-export const getEventsOfUser = async (req, res, next) => {
+export const getEventsOfUser = async (req, res) => {
   const id = req.params.id;
   let events;
   try {
@@ -271,7 +268,7 @@ export const getEventsOfUser = async (req, res, next) => {
   return res.status(200).json({ events: events });
 };
 
-export const getUserById = async (req, res, next) => {
+export const getUserById = async (req, res) => {
   const id = req.params.id;
   let user;
   try {
