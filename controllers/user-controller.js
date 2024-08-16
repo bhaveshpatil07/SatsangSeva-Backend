@@ -9,7 +9,7 @@ import cloudinary from "../utils/cloudinary.js";
 export const getAllUsers = async (req, res) => {
   let users;
   try {
-    users = await User.find();
+    users = await User.find().sort({ _id: -1 });
   } catch (err) {
     return console.log(err);
   }

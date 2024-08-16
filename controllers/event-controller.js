@@ -141,12 +141,14 @@ export const updateEvent = async (req, res, next) => {
       event.eventLink = eventLink;
       event.location = location;
       event.eventAddress = eventAddress;
-      event.geoCoordinates = {
-        type: 'Point',
-        coordinates: geoCoordinates,
-      };
-      event.startDate = new Date(`${startDate}`);
-      event.endDate = new Date(`${endDate}`);
+      if (geoCoordinates) {
+        event.geoCoordinates = {
+          type: 'Point',
+          coordinates: geoCoordinates,
+        };
+      }
+      event.startDate = new Date(`${startDate}Z`);
+      event.endDate = new Date(`${endDate}Z`);
 
       try {
         await event.save();
@@ -328,7 +330,7 @@ export const deleteEvent = async (req, res, next) => {
   const id = req.params.id;
   let event;
   try {
-    event = await User.findByIdAndRemove(id);
+    event = await Events.findByIdAndRemove(id);
   } catch (err) {
     return console.log(err);
   }
