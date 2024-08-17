@@ -5,6 +5,9 @@ import User from "../models/User.js";
 import upload from "../utils/multer.js";
 import cloudinary from "../utils/cloudinary.js";
 import Bookings from "../models/Bookings.js";
+import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
 
 export const addEvent = async (req, res, next) => {
   const extractedToken = req.headers.authorization.split(" ")[1];
@@ -162,27 +165,54 @@ export const updateEvent = async (req, res, next) => {
 };
 
 export const getNearByEvents = async (req, res, next) => {
-  const range = req.query.range;
-  const location = [req.query.long, req.query.lat];
-
+  const location = [parseFloat(req.query.long), parseFloat(req.query.lat)];
+  
   let events;
 
   try {
     // get Upcoming events SortedByStartDate
     const currentDate = new Date();
-    events = await Events.find({
-      startDate: { $gte: currentDate },
-      approved: true,
-      geoCoordinates: {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: location
-          },
-          $maxDistance: range * 1000 // convert km to meters
+    events = await Events.aggregate([
+      {
+        $geoNear: {
+          near: location,
+          distanceField: "distance",
+          spherical: true,
+        }
+      },
+      {
+        $match: {
+          startDate: { $gte: currentDate },
+          approved: true
+        }
+      },
+      {
+        $sort: { distance: 1 }
+      },
+      {
+        $project: {
+          _id: 1,
+          distance: 1,
+          eventName: 1,
+          eventCategory: 1,
+          eventLang: 1,
+          noOfAttendees: 1,
+          performerName: 1,
+          hostName: 1,
+          hostWhatsapp: 1,
+          sponserName: 1,
+          eventLink: 1,
+          location: 1,
+          eventAddress: 1,
+          startDate: 1,
+          endDate: 1,
+          eventDesc: 1,
+          eventPrice: 1,
+          eventPosters: 1,
+          approved: 1
         }
       }
-    }).sort({ distance: 1 }).populate('bookings', 'noOfAttendee');
+    ]);
 
   } catch (err) {
     return console.log(err);
@@ -380,6 +410,10 @@ export const searchEvents = async (req, res, next) => {
       $gte: startOfDay,
       $lte: endOfDay
     };
+  } else {
+    query.startDate = {
+      $gte: new Date(),
+    };
   }
   query.approved = true;
 
@@ -406,6 +440,9 @@ export const suggestEventNames = async (req, res, next) => {
 
   const query = {
     eventName: { $regex: eventName, $options: 'i' },
+    startDate: {
+      $gte: new Date(),
+    },
     approved: true
   };
 

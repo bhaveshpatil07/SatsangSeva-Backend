@@ -2,6 +2,68 @@ import mongoose from "mongoose";
 import Bookings from "../models/Bookings.js";
 import Event from "../models/Events.js";
 import User from "../models/User.js";
+import twilio from "twilio";
+import dotenv from 'dotenv';
+dotenv.config();
+
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = padZero(date.getMonth() + 1);
+  const day = padZero(date.getDate());
+  const hour = padZero(date.getHours());
+  const minute = padZero(date.getMinutes());
+  const second = padZero(date.getSeconds());
+
+  return `${year}${month}${day}T${hour}${minute}${second}Z`;
+
+  function padZero(value) {
+    return (value < 10 ? '0' : '') + value;
+  }
+}
+
+const filterJPG = (posters) => {
+  // Filter out only .jpg files
+  const jpgFiles = posters.filter((poster) => poster.endsWith('.jpg') || poster.endsWith('.jpeg') || poster.endsWith('.png'));
+
+  // If there are .jpg files, send the first one
+  if (jpgFiles.length > 0) {
+    const firstJpgFile = jpgFiles[0];
+    // Send the first .jpg file
+    return firstJpgFile;
+  } else {
+    // If no .jpg files, send the default image URL
+    const defaultImageUrl = 'https://play-lh.googleusercontent.com/LnB6MRHv1N4Q2zpJ7vNEeN4EbWRB12BT-Q4dHUbE1WysK_18vJGbxlhXlw8SjECp_zwk';
+    return defaultImageUrl;
+  }
+};
+
+const sendMessage = async (msg, media, userContact) => {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+  const client = twilio(accountSid, authToken);
+  try {
+    client.messages.create({
+      body: msg,
+      mediaUrl: [
+        media,
+      ],
+      from: `whatsapp:+14155238886`,
+      to: 'whatsapp:+91' + userContact
+    })
+      .then(message => console.log("Message sent successfully"))
+      .catch((e) => {
+        console.log("Error sending Message: " + e.message);
+      });
+
+    // return res.status(200).json({ success: true, msg:'Message sent successfully' });
+  } catch (error) {
+    console.log(error.message);
+    // return res.status(400).json({ success: false,msg:error.message });
+  }
+
+}
 
 export const newBooking = async (req, res, next) => {
   const { event, attendeeContact, noOfAttendee, amountPaid, paymentId, user } = req.body;
@@ -20,7 +82,7 @@ export const newBooking = async (req, res, next) => {
   if (!user) {
     return res.status(404).json({ message: "User not found with given ID" });
   }
-  if(!existingEvent.approved){
+  if (!existingEvent.approved) {
     return res.status(404).json({ message: "This Event is not approved by Admin." });
   }
   let booking;
@@ -42,6 +104,38 @@ export const newBooking = async (req, res, next) => {
     await existingEvent.save({ session });
     await booking.save({ session });
     session.commitTransaction();
+
+    //Send WhatsappMsg using Twilio
+    const date = new Date(existingEvent.startDate);
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1; // +1 because getMonth() returns 0-11
+    const day = date.getUTCDate();
+
+    await sendMessage(
+      `Dear ${existingUser.name},
+
+Thank you for booking with us. We are happy to inform you that event with booking ID '${booking._id}' is confirmed.
+
+Your Event Details:
+
+*Event:* ${existingEvent.eventName}
+*Sponsor Name:* ${existingEvent.sponserName}
+*Host Name:* ${existingEvent.hostName}
+*Host Contact:* ${existingEvent.hostWhatsapp}
+*Venue:* ${existingEvent.eventAddress}
+*Time:* ${date.getUTCHours()}:${date.getUTCMinutes()} | *Date:* ${day}/${month}/${year} | *Tickets:* ${noOfAttendee}
+*Total amount paid: ₹* ${existingEvent.eventPrice * noOfAttendee} 
+*PaymentId:* ${paymentId}
+
+*Add to GoogleCalendar:* https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(existingEvent.eventName)}&dates=${formatDate(existingEvent.startDate)},${formatDate(existingEvent.endDate)}&details=${encodeURIComponent("SatsangSeva Event Reminder")}&location=${encodeURIComponent(existingEvent.location)} 
+*GPS Location:* ${existingEvent.location}
+
+To view booked event online, go to your profile.
+
+*Satsang Seva: Jahan Bhakti, Wahan Hum*
+*Team SatsangSeva*`
+      , filterJPG(existingEvent.eventPosters), attendeeContact);
+
   } catch (err) {
     return console.log(err);
   }
@@ -71,7 +165,7 @@ export const getBookingsOfEvent = async (req, res, next) => {
   const eventId = req.params.id;
   let booking;
   try {
-    booking = await Bookings.find({event: eventId}).populate('user', 'name');
+    booking = await Bookings.find({ event: eventId }).populate('user', 'name');
   } catch (err) {
     return console.log(err);
   }
@@ -115,7 +209,7 @@ export const getCount = async (req, res, next) => {
           },
         },
       ]).then((result) => result[0].totalAttendees),
-      Event.countDocuments({}), 
+      Event.countDocuments({}),
     ]);
 
     res.json({
