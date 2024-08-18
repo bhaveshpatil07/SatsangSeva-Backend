@@ -5,6 +5,192 @@ import upload from "../utils/multer.js";
 import cloudinary from "../utils/cloudinary.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import twilio from "twilio";
+import dotenv from 'dotenv';
+import User from "../models/User.js";
+import nodemailer from 'nodemailer';
+dotenv.config();
+
+const emailTemplate = `
+<style>
+  body {
+    font-family: Arial, sans-serif;
+  }
+  .container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  }
+  .header {
+    background-color: #007bff;
+    color: #fff;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+  }
+  .header h2 {
+    margin: 0;
+  }
+  .body {
+    padding: 20px;
+  }
+  .body p {
+    margin-bottom: 20px;
+  }
+  .footer {
+    background-color: #007bff;
+    color: #fff;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+  }
+</style>
+
+<div class="container">
+  <div class="header">
+    <h2>Contact Us Form Submission: SatsangSeva</h2>
+  </div>
+  <div class="body">
+    <p><strong>Name:</strong> {{name}}</p>
+    <p><strong>Email:</strong> {{email}}</p>
+    <p><strong>Phone Number:</strong> +91-{{phoneNumber}}</p>
+    <p><strong>Message:</strong></p>
+    <p>{{message}}</p>
+  </div>
+  <div class="footer">
+    <p>Best regards,</p>
+    <p>Team SatsangSeva</p>
+  </div>
+</div>
+`;
+
+export const sendWhatsAppOtp = async (req, res, next) => {
+  const phone = req.params.id;
+  if (phone.length !== 10) {
+    return res.status(422).json({ message: "Invalid phone number" });
+  }
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const client = twilio(accountSid, authToken);
+
+  const verification = await client.verify.v2
+    .services(process.env.TWILIO_AUTH_SERVICES)
+    .verifications.create({
+      channel: "whatsapp",
+      to: "+91" + phone,
+      channelConfiguration: {
+        whatsapp: {
+          enabled: true,
+        },
+      }
+    }).then((resp) => {
+      // console.log(resp);
+      // console.log(resp.accountSid);
+      return res.status(200).json({ message: 'SMS/WhatsApp OTP Send Successfully' });
+    }).catch((e) => {
+      // console.log(e);
+      return res.status(404).json({ message: 'Error in Sending OTP: ' + e });
+    });
+};
+
+export const verifyWhatsAppOtp = async (req, res, next) => {
+  const otp = req.query.otp,
+    phone = req.query.contact;
+  if (phone.length !== 10 || otp.length !== 6) {
+    return res.status(422).json({ message: "Invalid Contact/OTP Length." });
+  }
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const client = twilio(accountSid, authToken);
+
+  const verificationCheck = await client.verify.v2
+    .services(process.env.TWILIO_AUTH_SERVICES)
+    .verificationChecks.create({
+      code: otp,
+      to: "+91" + phone,
+    }).then((resp) => {
+      // console.log(otp + " " + phone);
+      // console.log(resp.status);
+      if (resp.status === "approved") {
+        return res.status(200).json({ message: 'Contact Verified Successfully: ' + resp.status });
+      } else {
+        return res.status(422).json({ message: 'Verification Failed: ' + resp.status });
+      }
+    }).catch((e) => {
+      // console.log(e);
+      return res.status(404).json({ message: 'Error in Verifing OTP: ' + e });
+    });
+};
+
+export const resetPassword = async (req, res, next) => {
+  const email = req.params.id;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    return res.status(422).json({ message: "Invalid Email" });
+  }
+  const user = await User.findOne({ email: email });
+  if (!user) {
+    return res.status(500).json({ message: "User Not Exists for email: " + email });
+  }
+  const phone = user.phoneNumber;
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const client = twilio(accountSid, authToken);
+
+  const verification = await client.verify.v2
+    .services(process.env.TWILIO_AUTH_SERVICES)
+    .verifications.create({
+      channel: "whatsapp",
+      to: "+91" + phone,
+      channelConfiguration: {
+        whatsapp: {
+          enabled: true,
+        },
+      }
+    }).then((resp) => {
+      // console.log(resp);
+      // console.log(resp.accountSid);
+      return res.status(200).json({ message: 'SMS/WhatsApp OTP Send Successfully', to: phone });
+    }).catch((e) => {
+      // console.log(e);
+      return res.status(404).json({ message: 'Error in Sending OTP: ' + e });
+    });
+};
+
+export const contactUs = async (req, res, next) => {
+  const { name, email, phoneNumber, message } = req.body;
+
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_MAIL,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.GMAIL_MAIL,
+    to: process.env.GMAIL_MAIL,
+    subject: 'Contact Us Form Submission',
+    html: emailTemplate.replace('{{name}}', name)
+      .replace('{{email}}', email)
+      .replace('{{phoneNumber}}', phoneNumber)
+      .replace('{{message}}', message),
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: 'Thank you for contacting us' });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: 'Error sending email' });
+  }
+};
 
 
 export const addBlog = async (req, res, next) => {

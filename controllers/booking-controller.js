@@ -6,21 +6,25 @@ import twilio from "twilio";
 import dotenv from 'dotenv';
 dotenv.config();
 
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  const year = date.getFullYear();
-  const month = padZero(date.getMonth() + 1);
-  const day = padZero(date.getDate());
-  const hour = padZero(date.getHours());
-  const minute = padZero(date.getMinutes());
-  const second = padZero(date.getSeconds());
+function formatDate(date) {
+  // Convert the ISO date string to a Date object
+  const dt = new Date(date);
 
-  return `${year}${month}${day}T${hour}${minute}${second}Z`;
+  // Helper function to pad single digits with a leading zero
+  const pad = (num) => num.toString().padStart(2, '0');
 
-  function padZero(value) {
-    return (value < 10 ? '0' : '') + value;
-  }
+  // Extract year, month, day, hours, minutes, and seconds in UTC
+  const year = dt.getUTCFullYear();
+  const month = pad(dt.getUTCMonth() + 1); // Months are zero-indexed
+  const day = pad(dt.getUTCDate());
+  const hours = pad(dt.getUTCHours());
+  const minutes = pad(dt.getUTCMinutes());
+  const seconds = pad(dt.getUTCSeconds());
+
+  // Return the formatted date string in the required format
+  return `${year}${month}${day}T${hours}${minutes}${seconds}`;
 }
+
 
 const filterJPG = (posters) => {
   // Filter out only .jpg files
@@ -49,7 +53,7 @@ const sendMessage = async (msg, media, userContact) => {
       mediaUrl: [
         media,
       ],
-      from: `whatsapp:+14155238886`,
+      from: `whatsapp:` + whatsappNumber,
       to: 'whatsapp:+91' + userContact
     })
       .then(message => console.log("Message sent successfully"))
@@ -112,25 +116,25 @@ export const newBooking = async (req, res, next) => {
     const day = date.getUTCDate();
 
     await sendMessage(
-      `Dear ${existingUser.name},
+      `Dear *${existingUser.name}*,
 
-Thank you for booking with us. We are happy to inform you that event with booking ID '${booking._id}' is confirmed.
+Thank you for booking with us. We are happy to inform you that event with booking ID *${"booking._id"}* is confirmed.
 
 Your Event Details:
 
-*Event:* ${existingEvent.eventName}
-*Sponsor Name:* ${existingEvent.sponserName}
-*Host Name:* ${existingEvent.hostName}
-*Host Contact:* ${existingEvent.hostWhatsapp}
-*Venue:* ${existingEvent.eventAddress}
-*Time:* ${date.getUTCHours()}:${date.getUTCMinutes()} | *Date:* ${day}/${month}/${year} | *Tickets:* ${noOfAttendee}
-*Total amount paid: ₹* ${existingEvent.eventPrice * noOfAttendee} 
-*PaymentId:* ${paymentId}
+Event: *${existingEvent.eventName}*
+Sponsor Name: ${existingEvent.sponserName}
+Host Name: ${existingEvent.hostName}
+Host Contact: +91${existingEvent.hostWhatsapp}
+Venue: ${existingEvent.eventAddress}
+Time: *${date.getUTCHours()}:${date.getUTCMinutes()}* | Date: *${day}/${month}/${year}* | Tickets: *${noOfAttendee}*
+Total amount paid: *₹ ${existingEvent.eventPrice * noOfAttendee}* 
+PaymentId: *${paymentId}*
 
-*Add to GoogleCalendar:* https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(existingEvent.eventName)}&dates=${formatDate(existingEvent.startDate)},${formatDate(existingEvent.endDate)}&details=${encodeURIComponent("SatsangSeva Event Reminder")}&location=${encodeURIComponent(existingEvent.location)} 
+*Add to GoogleCalendar:* https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(existingEvent.eventName)}&details=${encodeURIComponent("SatsangSeva Event Reminder")}&dates=${formatDate(existingEvent.startDate)}/${formatDate(existingEvent.endDate)}&ctz=${encodeURIComponent("Asia/Kolkata")}&location=${encodeURIComponent(existingEvent.location)}
 *GPS Location:* ${existingEvent.location}
 
-To view booked event online, go to your profile.
+Booked events can be seen at your profile.
 
 *Satsang Seva: Jahan Bhakti, Wahan Hum*
 *Team SatsangSeva*`
