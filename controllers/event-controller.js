@@ -166,7 +166,7 @@ export const updateEvent = async (req, res, next) => {
 
 export const getNearByEvents = async (req, res, next) => {
   const location = [parseFloat(req.query.long), parseFloat(req.query.lat)];
-  
+
   let events;
 
   try {
@@ -225,6 +225,49 @@ export const getNearByEvents = async (req, res, next) => {
     return res.status(404).json({ message: "No events found" });
   }
   return res.status(200).json({ events: events });
+};
+
+export const getEventsByKM = async (req, res, next) => {
+  const location = [parseFloat(req.query.long), parseFloat(req.query.lat)];
+
+  try {
+    // Construct the origins and destinations for the API request
+    const origins = `${location[1]},${location[0]}`;
+    const events = await Events.find(); // Add await here
+    const destinations = events.map(item => `${item.geoCoordinates.coordinates[1]},${item.geoCoordinates.coordinates[0]}`).join('|');
+
+    // Request to Google Distance Matrix API
+    const response = await axios.get('https://maps.googleapis.com/maps/api/distancematrix/json', {
+      params: {
+        origins,
+        destinations,
+        key: process.env.GMAP_KEY,
+        mode: 'driving', // Add mode parameter
+        units: 'metric' // Add units parameter
+      }
+    });
+
+    const results = response.data.rows;
+    const eventsWithDistance = events.map((event, index) => {
+      const element = results[0].elements[index];
+      return {
+        ...event.toObject(),
+        dist: element.distance.text,
+        time: element.duration.text,
+        distanceValue: element.distance.value, // meters
+        // durationValue: element.duration.value // seconds
+      };
+
+    });
+
+    // Sort events by distance
+    eventsWithDistance.sort((a, b) => a.distanceValue - b.distanceValue);
+
+    return res.status(200).json({ events: eventsWithDistance });
+  } catch (error) {
+    console.error('Error fetching distance and time:', error);
+    next(error); // Pass error to next middleware
+  }
 };
 
 export const getUpComingEvents = async (req, res, next) => {

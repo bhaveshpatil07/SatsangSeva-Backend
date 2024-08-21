@@ -99,45 +99,55 @@ export const updateUser = async (req, res) => {
 
 export const modifyUser = async (req, res) => {
   const id = req.params.id;
-  upload(req, res, async () => {
-    const update = {};
-    const { name, phoneNumber, password, desc, location, social } = JSON.parse(req.body.updateUser);
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: `User doesn't exist for id: ${id}` });
+    }
 
+    upload(req, res, async () => {
+      const update = {};
+      const { name, phoneNumber, password, desc, location, social } = JSON.parse(req.body.updateUser);
 
-    if (name) update.name = name;
-    // if (email) update.email = email;
-    if (phoneNumber) update.phoneNumber = phoneNumber;
-    if (password) update.password = bcrypt.hashSync(password);
-    if (desc) update.desc = desc;
-    if (location) update.location = location;
+      if (name) update.name = name;
+      // if (email) update.email = email;
+      if (phoneNumber) update.phoneNumber = phoneNumber;
+      if (password) update.password = bcrypt.hashSync(password);
+      if (desc) update.desc = desc;
+      if (location) update.location = location;
 
-    // Handle profile image upload
-    if (req.files) {
-      try {
-        const file = req.files[0];
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'SatsangSeva/Users',
+      // Handle profile image upload
+      if (req.files && req.files.length > 0) {
+        try {
+          const file = req.files[0];
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: 'SatsangSeva/Users',
+          });
+          update.profile = result.secure_url;
+        } catch (err) {
+          console.log(err);
+          return res.status(500).json({ message: err });
+        }
+      }
+
+      if (social) {
+        update.social = Object.keys(social).map((key) => {
+          return { type: key, link: social[key] };
         });
-        update.profile = result.secure_url;
+      }
+
+      try {
+        await User.findByIdAndUpdate(id, update, { new: true });
+        return res.status(200).json({ message: "Updated Successfully" });
       } catch (err) {
         console.log(err);
         return res.status(500).json({ message: err });
       }
-    }
-
-    if (social) {
-      update.social = Object.keys(social).map((key) => {
-        return { type: key, link: social[key] };
-      });
-    }
-
-    try {
-      return res.status(200).json({ message: "Updated Successfully" });
-    } catch (err) {
-      console.log(err);
-      return res.status(500).json({ message: err });
-    }
-  });
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: err });
+  }
 };
 
 export const submitDoc = async (req, res) => {

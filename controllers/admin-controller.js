@@ -175,8 +175,8 @@ export const contactUs = async (req, res, next) => {
 
   const mailOptions = {
     from: process.env.GMAIL_MAIL,
-    to: process.env.GMAIL_MAIL,
-    subject: 'Contact Us Form Submission',
+    to: email,
+    subject: 'Thank You For Contacting Us',
     html: emailTemplate.replace('{{name}}', name)
       .replace('{{email}}', email)
       .replace('{{phoneNumber}}', phoneNumber)

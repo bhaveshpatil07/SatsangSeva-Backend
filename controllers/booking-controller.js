@@ -118,13 +118,13 @@ export const newBooking = async (req, res, next) => {
     await sendMessage(
       `Dear *${existingUser.name}*,
 
-Thank you for booking with us. We are happy to inform you that event with booking ID *${"booking._id"}* is confirmed.
+Thank you for booking with us. We are happy to inform you that event with booking ID *${booking._id}* is confirmed.
 
 Your Event Details:
 
 Event: *${existingEvent.eventName}*
-Sponsor Name: ${existingEvent.sponserName}
-Host Name: ${existingEvent.hostName}
+Sponsor: ${existingEvent.sponserName}
+Host: ${existingEvent.hostName}
 Host Contact: +91${existingEvent.hostWhatsapp}
 Venue: ${existingEvent.eventAddress}
 Time: *${date.getUTCHours()}:${date.getUTCMinutes()}* | Date: *${day}/${month}/${year}* | Tickets: *${noOfAttendee}*
