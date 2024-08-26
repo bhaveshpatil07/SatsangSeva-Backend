@@ -2,67 +2,35 @@
 # Bhajan-Booking-Backend
 # bookMyBhajanBackend
 
-# BackendAPIs:
-1. /user:
-    /signup: 
-        { 
-            "name": "Bhavesh Patil",
-            "email": "xyz@email.com",
-            "phoneNumber": "1234567890",
-            "password": "123"
-        }
-    /login:
-        Req: {   "email": "xyz@email.com", "password": "123" }
-        Resp: { "message": "Login Successfull",
-                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2YTYwMmEwNGQyMjUzZWZkYTU5YmUyNyIsImlhdCI6MTcyMjE1NTgzMSwiZXhwIjoxNzIyNzYwNjMxfQ.uf4FVuLYwVe7RdoN2qRtkaFKLztRdftcidRnrhr80w8",
-                "id": "66a602a04d2253efda59be27"
-            }
-    / : getAllUsers
-    /:id : getUserById
-    /:id : deleteUser
-    /:id : updateUser
-        { 
-            "name": "Mr. Bhavesh Patil",
-            "email": "xyz@email.com",
-            "phoneNumber": "0123456789",
-            "password": "123"
-        }
-    /bookings/:id : getBookingsOfUser
-    /events/:id : getBookingsOfUser
+## Environment Setup
 
-2. /events:
-    / : addEvent
-        Header-Auth-Bearer=Token
-        { 
-            "eventName": "Krishna Bhajan",
-            "eventCategory": "Bhakti",
-            "eventLang": "Hindi",
-            "noOfAttendees": "12050",
-            "performerName": "Narendra Chopra",
-            "hostName": "Dummy",
-            "hostWhatsapp": "1234567890",
-            "sponserName": "Sponser Dummy",
-            "eventLink": "https://www.youtube.com/watch?v=04x7qW_DS2Y",
-            "location": "https://maps.app.goo.gl/nZ3FRXhztZvTM2Uh9",
-            "eventAddress": "ABC Ganpati Temple, Banaglore highway, Mumbai, Maharashtra, 456798",
-            "startDate": "2024-11-22 10:35",
-            "endDate": "2024-12-02 17:55"
-        }
-        And Image file
-    / : getAllEvents
-    /:id : getEventById
+To get started, create a `.env` file in the root of your project with the following variables:
 
-3. /booking:
-    / : newBooking
-        {
-            "event": "66a606cb19f8ec1c7673378f",
-            "attendeeContact": "9456987456",
-            "user": "66a60a7a2b68be8c008dbff9"
-        }
-    /:id : getBookingById
-    /:id : deleteBooking
+### Required Environment Variables
+---------------------------------
 
-    
+```markdown
+# .env file configuration
 
-/event/search:
-    get: ?name=...&add=...&date=...
+# Backend Configuration
+PORT=8000
+SECRET_KEY=SAME as in Frontend .env
+MONGODB_URL=YOUR_DB_URL
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID=Get it From Twilio
+TWILIO_AUTH_TOKEN=Get it From Twilio
+TWILIO_AUTH_SERVICES=Get it From Twilio
+TWILIO_WHATSAPP_NUMBER=Get it From Twilio
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=Get it From Cloudinary.com
+CLOUDINARY_API_KEY=Get it From Cloudinary.com
+CLOUDINARY_API_SECRET=Get it From Cloudinary.com
+
+# GMail Configuration
+GMAIL_MAIL=YOUR_EMAIL
+GMAIL_APP_PASSWORD=YOUR_APP_PASS
+
+# Google Maps API Key
+GMAP_KEY=Get it from the Google Cloud Console

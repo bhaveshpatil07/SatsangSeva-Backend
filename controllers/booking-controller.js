@@ -3,6 +3,7 @@ import Bookings from "../models/Bookings.js";
 import Event from "../models/Events.js";
 import User from "../models/User.js";
 import twilio from "twilio";
+import translate from "translate";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -117,27 +118,37 @@ export const newBooking = async (req, res, next) => {
 
     await sendMessage(
       `Dear *${existingUser.name}*,
+माननीय *${await translate(existingUser.name, "hi")}*
 
-Thank you for booking with us. We are happy to inform you that event with booking ID *${booking._id}* is confirmed.
+Thank you for booking with SatsangSeva.com. We are happy to inform you that your event booking with booking ID *${booking._id}* is confirmed.
+SatsangSeva.com के साथ बुकिंग करने के लिए आपका धन्यवाद। हमें यह बताते हुए खुशी हो रही है कि बुकिंग आईडी *${booking._id}* के साथ आपका कार्यक्रम बुकिंग कन्फर्म हो गया है।
 
-Your Event Details:
+Booked Event Details:
 
 Event: *${existingEvent.eventName}*
 Sponsor: ${existingEvent.sponserName}
 Host: ${existingEvent.hostName}
-Host Contact: +91${existingEvent.hostWhatsapp}
 Venue: ${existingEvent.eventAddress}
 Time: *${date.getUTCHours()}:${date.getUTCMinutes()}* | Date: *${day}/${month}/${year}* | Tickets: *${noOfAttendee}*
-Total amount paid: *₹ ${existingEvent.eventPrice * noOfAttendee}* 
-PaymentId: *${paymentId}*
+Total amount paid: *FREE*
 
-*Add to GoogleCalendar:* https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(existingEvent.eventName)}&details=${encodeURIComponent("SatsangSeva Event Reminder")}&dates=${formatDate(existingEvent.startDate)}/${formatDate(existingEvent.endDate)}&ctz=${encodeURIComponent("Asia/Kolkata")}&location=${encodeURIComponent(existingEvent.location)}
-*GPS Location:* ${existingEvent.location}
+बुक कार्यक्रम की जानकारी:
 
-Booked events can be seen at your profile.
+कार्यक्रम: *${await translate(existingEvent.eventName, "hi")}*
+आयोजक: *${await translate(existingEvent.sponserName, "hi")}*
+व्यवस्थापक: *${await translate(existingEvent.hostName, "hi")}*
+स्थान: *${await translate(existingEvent.eventAddress, "hi")}*
+समय: *${date.getUTCHours()}:${date.getUTCMinutes()}* | दिनांक: *${day}/${month}/${year}* | टिकट: *${noOfAttendee}*
+कुल राशि भुगतान: *निःशुल्क*
 
-*Satsang Seva: Jahan Bhakti, Wahan Hum*
-*Team SatsangSeva*`
+*Add to GoogleCalendar कैलेंडर में जोड़ें:* https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(existingEvent.eventName)}&details=${encodeURIComponent("SatsangSeva Event Reminder")}&dates=${formatDate(existingEvent.startDate)}/${formatDate(existingEvent.endDate)}&ctz=${encodeURIComponent("Asia/Kolkata")}&location=${encodeURIComponent(existingEvent.location)}
+*GPS Location जीपीएस लोकेशन:* ${existingEvent.location}
+
+Booked events can be seen in your profile.
+बुक किए गए इवेंट आपकी प्रोफ़ाइल में देखे जा सकते हैं।
+
+*Team SatsangSeva*
+*जहां भक्ति, वहां हम*`
       , filterJPG(existingEvent.eventPosters), attendeeContact);
 
   } catch (err) {
