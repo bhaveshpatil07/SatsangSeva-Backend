@@ -233,7 +233,7 @@ export const getEventsByKM = async (req, res, next) => {
   try {
     // Construct the origins and destinations for the API request
     const origins = `${location[1]},${location[0]}`;
-    const events = await Events.find({approved: true}); // Add await here
+    const events = await Events.find({approved: true, startDate: {$gte: new Date()}});
     const destinations = events.map(item => `${item.geoCoordinates.coordinates[1]},${item.geoCoordinates.coordinates[0]}`).join('|');
 
     // Request to Google Distance Matrix API
